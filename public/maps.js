@@ -5,11 +5,17 @@ function initMap() {
     });
 
     function addDevice(device) {
+        if (!device.lat || !device.lng) {
+            console.log(device);
+            return;
+        }
+
         var marker = new google.maps.Marker({
             position: { lat: device.lat, lng: device.lng },
             map: map,
-            title: device.appId + ': ' + device.eui,
-            draggable: true
+            title: device.name + ' (' + device.id + ')',
+            draggable: false,
+            icon: '/bus-black.png'
         });
 
         device.marker = marker;
@@ -17,6 +23,7 @@ function initMap() {
         marker.addListener('click', function() {
             function getChartConfig(prop) {
                 var c = window.config.dataMapping[prop];
+
                 var color = window.chartColorsArr[Object.keys(window.config.dataMapping).indexOf(prop) % window.chartColorsArr.length];
 
                 return {
@@ -74,17 +81,19 @@ function initMap() {
                 };
             }
 
-            var olId = 'overlay-' + device.eui;
+            var olId = 'overlay-' + device.id;
 
             var infowindow = new google.maps.InfoWindow({
-                content: '<div id="' + olId + '"><p class="eui">Device </p></div>'
+                content: '<div id="' + olId + '"><p class="eui">Device </p><div class="graphs" style="display: flex"></div></div>'
             });
 
             infowindow.open(map, this);
             infowindow.addListener('domready', () => {
-                var o = document.querySelector('#' + olId);
+                var o = document.querySelector('#' + olId + ' .graphs');
 
-                Object.keys(window.config.dataMapping).forEach(function(prop) {
+                Object.keys(window.config.dataMapping).filter(function(prop) {
+                    return window.config.dataMapping[prop].showGraph !== false;
+                }).forEach(function(prop) {
                     var config = getChartConfig(prop);
 
                     var p = document.createElement('p');
@@ -98,11 +107,11 @@ function initMap() {
                     var line = new Chart(ctx, config);
 
                     socket.on('value-change', function pc(_prop, d, ts, value) {
-                        if (o !== document.querySelector('#' + olId)) {
+                        if (o !== document.querySelector('#' + olId + ' .graphs')) {
                             socket.removeListener('value-change', pc);
                             return;
                         }
-                        if (d.appId !== device.appId || d.devId !== device.devId) {
+                        if (d.id !== device.id) {
                             return;
                         }
                         if (_prop !== prop) {
@@ -124,14 +133,8 @@ function initMap() {
                     });
                 });
 
-                document.querySelector('#' + olId + ' .eui').textContent = 'Device ' + device.eui + ' (' + device.appId + ')';
+                document.querySelector('#' + olId + ' .eui').textContent = device.name + ' (' + device.id + ')';
             });
-        });
-
-        marker.addListener('dragend', function(evt) {
-            console.log('new lat/lng is', device.appId, device.devId, evt.latLng.lat(), evt.latLng.lng());
-
-            socket.emit('location-change', device.appId, device.devId, evt.latLng.lat(), evt.latLng.lng());
         });
     }
 
