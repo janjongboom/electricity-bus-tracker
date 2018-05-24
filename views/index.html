@@ -86,8 +86,9 @@
 
     // from https://stackoverflow.com/questions/5892113/extend-google-maps-marker-to-animate-smoothly-on-update
     function smoothMove(marker, lat, lng) {
+      var id = marker._smid = (marker._smid || 0) + 1;
+
       var position = [marker.position.lat(), marker.position.lng()];
-      console.log(position);
       var numDeltas = 100;
       var delay = 10; //milliseconds
       var i = 0;
@@ -101,6 +102,9 @@
       }
 
       function moveMarker(){
+        // cancel animation if new location is present
+        if (id !== marker._smid) return;
+
         position[0] += deltaLat;
         position[1] += deltaLng;
         var latlng = new google.maps.LatLng(position[0], position[1]);
